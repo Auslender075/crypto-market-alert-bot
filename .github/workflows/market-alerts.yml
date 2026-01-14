@@ -1,0 +1,36 @@
+name: Market Alerts
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # every 5 minutes
+  workflow_dispatch:        # allows manual run button
+
+jobs:
+  run-alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run bot once
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python main.py
+
+      - name: Commit state file (cooldowns)
+        run: |
+          if [ -f state.json ]; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@github.com"
+            git add state.json
+            git commit -m "Update alert state" || echo "No changes"
+            git push
+          fi
