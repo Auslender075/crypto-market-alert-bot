@@ -103,4 +103,11 @@ def run_once():
         recent_alerts[coin_id] = now
         alerts_sent += 1
 
-    state["r]()
+    state["recent_alerts"] = recent_alerts
+    save_state(state)
+
+    return alerts_sent
+
+if __name__ == "__main__":
+    alerts = run_once()
+    print(f"Done. Alerts sent: {alerts}")
