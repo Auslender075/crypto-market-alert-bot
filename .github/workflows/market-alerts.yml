@@ -3,19 +3,32 @@ name: Market Alerts
 on:
   schedule:
     - cron: "*/10 * * * *"   # every 10 minutes
-  workflow_dispatch:        # allows manual run button
+  workflow_dispatch:
+
+# Needed so the job can push state.json using GITHUB_TOKEN
+permissions:
+  contents: write
+
+# Prevent overlapping runs from corrupting state.json
+concurrency:
+  group: market-alerts
+  cancel-in-progress: false
 
 jobs:
   run-alerts:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # needed for pull --rebase to behave sanely
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
 
       - name: Install dependencies
         run: pip install -r requirements.txt
@@ -30,7 +43,19 @@ jobs:
           if [ -f state.json ]; then
             git config user.name "github-actions"
             git config user.email "github-actions@github.com"
+
             git add state.json
-            git commit -m "Update alert state" || echo "No changes"
+
+            # Only commit if there are staged changes
+            if git diff --staged --quiet; then
+              echo "No changes to commit"
+              exit 0
+            fi
+
+            git commit -m "Update alert state"
+
+            # Rebase on latest to avoid push failures
+            git pull --rebase
+
             git push
           fi
